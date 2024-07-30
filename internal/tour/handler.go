@@ -7,7 +7,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-var s InMemStorage
+// var s InMemStorage
 
 type service interface {
 	GetTours() []Tour

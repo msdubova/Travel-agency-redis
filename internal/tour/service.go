@@ -1,18 +1,24 @@
 package tour
 
-import "time"
+import (
+	"context"
+	"time"
+	"travel-agency-redis/internal/cache"
+)
 
 type storage interface {
 	GetTours() []Tour
 }
 
 type Service struct {
-	s storage
+	s     storage
+	cache *cache.RedisCache
 }
 
-func NewService(s storage) *Service {
+func NewService(s storage, cache *cache.RedisCache) *Service {
 	service := &Service{
-		s: s,
+		s:     s,
+		cache: cache,
 	}
 
 	return service
@@ -20,18 +26,17 @@ func NewService(s storage) *Service {
 
 func (s *Service) GetTours() []Tour {
 
-	tours := s.s.GetTours()
-	for i, tour := range tours {
-		tours[i].PrimePrice = tour.Price * 1.1
-	}
-	now := time.Now()
-	isEvening := now.Hour() >= 18 || now.Hour() < 22
+	var tours []Tour
+	ctx := context.Background()
+	cacheKey := "tours"
 
-	if isEvening {
-		for i, tour := range tours {
-			tours[i].Price = tour.PrimePrice
-		}
+	err := s.cache.Get(ctx, cacheKey, &tours)
+	if err == nil && len(tours) > 0 {
+		return tours
 	}
+
+	tours = s.s.GetTours()
+	s.cache.Set(ctx, cacheKey, tours, 15*time.Minute)
 
 	return tours
 }
